@@ -1,0 +1,87 @@
+From 494e64e00ab604e1718bf01a0b976c2b3e8b93fb Mon Sep 17 00:00:00 2001
+From: icanhasmath <marcg@activestate.com>
+Date: Thu, 22 Jul 2021 11:27:15 -0400
+Subject: [PATCH] Adjust libraries for zlib, bzip2, libpng & freetype
+
+Add stdint.h for 32-bit builds
+---
+ setup.cfg    |   2 ++
+ setupext.py  |  15 ++--
+ 2 files changed, 11 insertions(+), 6 deletions(-)
+ create mode 100644 setup.cfg
+
+diff --git a/setup.cfg b/setup.cfg
+new file mode 100644
+index 0000000..61a486b
+--- /dev/null
++++ b/setup.cfg
+@@ -0,0 +1,2 @@
++[test]
++local_freetype = False
+diff --git a/setupext.py b/setupext.py
+index 3536cf6..d6c00dd 100644
+--- a/setupext.py
++++ b/setupext.py
+@@ -484,7 +484,7 @@ class PkgConfig(object):
+             else:
+                 output = output.decode(sys.getfilesystemencoding())
+                 use_defaults = False
+-                for token in output.split():
++                for token in reversed(output.split()):
+                     attr = flag_map.get(token[:2])
+                     if attr is not None:
+                         getattr(ext, attr).insert(0, token[2:])
+@@ -1223,13 +1223,16 @@ class FreeType(SetupPackage):
+             # This is certainly broken on Windows.
+             ext.include_dirs.insert(0, os.path.join(src_path, 'include'))
+             if sys.platform == 'win32':
+-                libfreetype = 'libfreetype.lib'
++                libfreetype = 'freetype.lib'
+             else:
+                 libfreetype = 'libfreetype.a'
+             ext.extra_objects.insert(
+                 0, os.path.join(src_path, 'objs', '.libs', libfreetype))
+             ext.define_macros.append(('FREETYPE_BUILD_TYPE', 'local'))
+         else:
++            set_libraries=['freetype', 'z']
++            if sys.version_info[0] < 3 and sys.platform =='win32':
++                set_libraries=['libpng16', 'libbz2', 'freetype', 'zlib']
+             pkg_config.setup_extension(
+                 ext, 'freetype2',
+                 default_include_dirs=[
+@@ -1238,7 +1241,7 @@ class FreeType(SetupPackage):
+                     'lib/freetype2/include/freetype2'],
+                 default_library_dirs=[
+                     'freetype2/lib'],
+-                default_libraries=['freetype', 'z'])
++                default_libraries=set_libraries)
+             ext.define_macros.append(('FREETYPE_BUILD_TYPE', 'system'))
+ 
+     def do_custom_build(self):
+@@ -1251,7 +1254,7 @@ class FreeType(SetupPackage):
+ 
+         # We've already built freetype
+         if sys.platform == 'win32':
+-            libfreetype = 'libfreetype.lib'
++            libfreetype = 'freetype.lib'
+         else:
+             libfreetype = 'libfreetype.a'
+ 
+@@ -1384,7 +1387,7 @@ class Png(SetupPackage):
+ 
+         try:
+             return self._check_for_pkg_config(
+-                'libpng', 'png.h',
++                'libpng16', 'png.h',
+                 min_version='1.2', version=version)
+         except CheckFailed as e:
+             if has_include_file(get_include_dirs(), 'png.h'):
+@@ -1398,7 +1401,7 @@ class Png(SetupPackage):
+             ]
+         ext = make_extension('matplotlib._png', sources)
+         pkg_config.setup_extension(
+-            ext, 'libpng', default_libraries=['png', 'z'],
++            ext, 'libpng16', default_libraries=['png16', 'z'],
+             alt_exec='libpng-config --ldflags')
+         Numpy().add_flags(ext)
+         return ext
