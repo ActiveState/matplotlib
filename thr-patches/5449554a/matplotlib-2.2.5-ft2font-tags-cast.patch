@@ -1,0 +1,32 @@
+Description: Fix ft2font.cpp build with FreeType >= 2.10.2 / strict C++
+ FreeType 2.10.2 changed FT_Outline::tags from `char*` to `unsigned char*`.
+ Under stricter C++ (e.g. -std=c++17 without -fpermissive), assigning
+ `outline.tags + first` to the local `char *tags` variable now fails with:
+   error: invalid conversion from 'unsigned char*' to 'char*'
+ Cast to char* to restore the previous (well-defined) behavior. FT_CURVE_TAG
+ only inspects the low two bits, so signedness of the cast is irrelevant.
+Origin: backport, https://github.com/matplotlib/matplotlib (upstream cast for newer FreeType)
+Forwarded: not-needed (matplotlib 2.2.x is end-of-life)
+Author: ActiveState build patch
+Last-Update: 2026-05-14
+
+--- a/src/ft2font.cpp
++++ b/src/ft2font.cpp
+@@ -204,7 +204,7 @@
+         v_control = v_start;
+
+         point = outline.points + first;
+-        tags = outline.tags + first;
++        tags = (char *)(outline.tags + first);
+         tag = FT_CURVE_TAG(tags[0]);
+
+         // A contour cannot start with a cubic control point!
+@@ -320,7 +320,7 @@
+         v_control = v_start;
+
+         point = outline.points + first;
+-        tags = outline.tags + first;
++        tags = (char *)(outline.tags + first);
+         tag = FT_CURVE_TAG(tags[0]);
+
+         double x, y;
